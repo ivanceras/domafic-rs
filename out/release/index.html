@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>Count</title>
+
+  <script type='text/javascript'>
+  /*
+    fetch("target/wasm32-unknown-emscripten/debug/examples/todo_mvc-8898a729b947a1a7.wasm").then(res => res.arrayBuffer()).then(buffer => {
+        console.log("got wasm");
+      let module = WebAssembly.instantiate(new Uint8Array(buffer), {});
+      document.getElementById("btn").addEventListener("click", function() {
+        console.log("clicked here");
+        this.value = module.exports._main();
+        console.log(this.value);
+      }, false);
+    });
+    */
+
+window.Module = {};
+
+let file = "todo_mvc";
+let wasm_file = file +".wasm";
+let js_file = file+".js";
+let asmjs_file = file+".asm.js";
+fetch(wasm_file)
+  .then(response => response.arrayBuffer())
+  .then(bytes => {
+    Module.wasmBinary = bytes;
+
+    let script = document.createElement('script');
+    script.src = js_file
+    document.body.appendChild(script);
+  });
+
+/*
+    let script = document.createElement('script');
+    script.src = "todo_mvc.js"
+    document.body.appendChild(script);
+    */
+  </script>
+</head>
+<body>
+  <input type="button" id="btn" value="Click me!" />
+</body>
+</html>
