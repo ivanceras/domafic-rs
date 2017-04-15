@@ -1,8 +1,5 @@
 use DomNode;
 use keys::KeyIter;
-extern crate libc;
-use std::ffi::CString;
-use web_render::private::emscripten_asm_const_int;
 
 /// `Updater`s modify the current application state based on messages.
 pub trait Updater<State, Message>: Sized {
@@ -291,7 +288,7 @@ mod private {
                     &JS[0] as *const _ as *const libc::c_char,
                     handle_http_result::<D, M, U, R, S> as *const libc::c_void,
                     self.app_system as *const libc::c_void,
-                    method_cstring.as_ptr() as libc::c_int,
+                   method_cstring.as_ptr() as libc::c_int,
                     url_cstring.as_ptr() as libc::c_int,
                     body_cstring.as_ptr() as libc::c_int,
                     header_key_pointers.len() as libc::c_int,
@@ -1191,6 +1188,9 @@ mod private {
 
 /// set title of the document
 pub fn set_title(title: &str) {
+    extern crate libc;
+    use std::ffi::CString;
+    use web_render::private::emscripten_asm_const_int;
     unsafe {
         const JS: &'static [u8] = b"\
             document.title = [UTF8ToString($0)];\
