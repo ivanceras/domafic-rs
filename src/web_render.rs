@@ -417,7 +417,6 @@ mod private {
         }
 
         fn create_element(&self, tagname: &str) -> Option<WebElement> {
-            println!("creating element: {}", tagname);
             let id = {
                 unsafe {
                     const JS: &'static [u8] = b"\
@@ -873,12 +872,51 @@ mod private {
                 let key_cstring = CString::new(key_value.0).unwrap();
                 let value_str = key_value.1.as_str();
                 let value_cstring = CString::new(value_str).unwrap();
-                println!("key_cstring: {:?} ", key_cstring);
-                println!("value_cstring: {:?} ", value_cstring);
+                if key_value.0 == "codemirror" {
+                    println!("got a code mirror here: {:?}", key_value);
+                    self.codemirror(value_str);
+                }
                 emscripten_asm_const_int(
                     &JS[0] as *const _ as *const libc::c_char,
                     self.0,
                     key_cstring.as_ptr() as libc::c_int,
+                    value_cstring.as_ptr() as libc::c_int
+                );
+            }
+        }
+
+        // a hack to get around with static compile time check of CodeMirror
+        // not linked in the code
+        fn codemirror(&self, value: &str) {
+            unsafe {
+                const JS: &'static [u8] = b"\
+                    console.log(__domafic_pool[$0]);\
+                    var cm_value = UTF8ToString($1);\
+                    if(CodeMirror){\
+                            if(window.editor){\
+                                console.log(\"reusing existing editor\", window.editor);\
+                                console.log(\"setting to value\", cm_value);\
+                                window.editor.getDoc().setValue(cm_value);\
+                                console.log(\"now editor\", window.editor);\
+                                setTimeout(function(){\
+                                    window.editor.refresh();\
+                                },100a);\
+                            }else{\
+                                setTimeout(function(){\
+                                    window.editor = CodeMirror.fromTextArea(__domafic_pool[$0],{\
+                                        value: cm_value,\
+                                        lineNumbers: true,\
+                                        autofocus: true,\
+                                        styleActiveLine: true\
+                                    });\
+                                },100);\
+                            }\
+                    }\
+                \0";
+                let value_cstring = CString::new(value).unwrap();
+                emscripten_asm_const_int(
+                    &JS[0] as *const _ as *const libc::c_char,
+                    self.0,
                     value_cstring.as_ptr() as libc::c_int
                 );
             }
@@ -1199,6 +1237,44 @@ pub fn set_title(title: &str) {
         emscripten_asm_const_int(
             &JS[0] as *const _ as *const libc::c_char,
             title_cstring.as_ptr() as libc::c_int,
+        );
+    }
+}
+
+/// set title of the document
+pub fn set_body_classname(classname: &str) {
+    extern crate libc;
+    use std::ffi::CString;
+    use web_render::private::emscripten_asm_const_int;
+    unsafe {
+        const JS: &'static [u8] = b"\
+            document.body.className = [UTF8ToString($0)];\
+        \0";
+        let classname_cstring = CString::new(classname).unwrap();
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            classname_cstring.as_ptr() as libc::c_int,
+        );
+    }
+}
+
+/// set title of the document
+pub fn codemirror(id: &str) {
+    extern crate libc;
+    use std::ffi::CString;
+    use web_render::private::emscripten_asm_const_int;
+    unsafe {
+        const JS: &'static [u8] = b"\
+            CodeMirror.fromTextArea(document.getElementById(UTF8ToString($0)), {\
+                    lineNumbers: true,\
+                    autofocus: true,\
+                    styleActiveLine: true\
+             });\
+        \0";
+        let id_cstring = CString::new(id).unwrap();
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            id_cstring.as_ptr() as libc::c_int,
         );
     }
 }
