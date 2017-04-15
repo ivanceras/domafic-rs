@@ -1,5 +1,8 @@
 use DomNode;
 use keys::KeyIter;
+extern crate libc;
+use std::ffi::CString;
+use web_render::private::emscripten_asm_const_int;
 
 /// `Updater`s modify the current application state based on messages.
 pub trait Updater<State, Message>: Sized {
@@ -357,7 +360,7 @@ mod private {
     }
 
     extern "C" {
-        fn emscripten_asm_const_int(s: *const libc::c_char, ...) -> libc::c_int;
+        pub fn emscripten_asm_const_int(s: *const libc::c_char, ...) -> libc::c_int;
         fn emscripten_pause_main_loop();
         fn emscripten_set_main_loop(m: extern fn(), fps: libc::c_int, infinite: libc::c_int);
     }
@@ -417,6 +420,7 @@ mod private {
         }
 
         fn create_element(&self, tagname: &str) -> Option<WebElement> {
+            println!("creating element: {}", tagname);
             let id = {
                 unsafe {
                     const JS: &'static [u8] = b"\
@@ -872,6 +876,8 @@ mod private {
                 let key_cstring = CString::new(key_value.0).unwrap();
                 let value_str = key_value.1.as_str();
                 let value_cstring = CString::new(value_str).unwrap();
+                println!("key_cstring: {:?} ", key_cstring);
+                println!("value_cstring: {:?} ", value_cstring);
                 emscripten_asm_const_int(
                     &JS[0] as *const _ as *const libc::c_char,
                     self.0,
@@ -1042,7 +1048,7 @@ mod private {
                                 let do_remove = {
                                     let ref old_attribute = vnode.attributes[i];
                                     if !node.attributes().any(|attr| *attr == *old_attribute) {
-                                        vnode.web_element.remove_attribute(old_attribute.0);
+                                        //vnode.web_element.remove_attribute(old_attribute.0);
                                         true
                                     } else {
                                         false
@@ -1179,5 +1185,20 @@ mod private {
             }
             add_listener_to_vec
         }
+    }
+}
+
+
+/// set title of the document
+pub fn set_title(title: &str) {
+    unsafe {
+        const JS: &'static [u8] = b"\
+            document.title = [UTF8ToString($0)];\
+        \0";
+        let title_cstring = CString::new(title).unwrap();
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            title_cstring.as_ptr() as libc::c_int,
+        );
     }
 }
