@@ -900,7 +900,7 @@ mod private {
                                 console.log(\"now editor\", window.editor);\
                                 setTimeout(function(){\
                                     window.editor.refresh();\
-                                },100a);\
+                                },100);\
                             }else{\
                                 setTimeout(function(){\
                                     window.editor = CodeMirror.fromTextArea(__domafic_pool[$0],{\
@@ -1276,5 +1276,143 @@ pub fn codemirror(id: &str) {
             &JS[0] as *const _ as *const libc::c_char,
             id_cstring.as_ptr() as libc::c_int,
         );
+    }
+}
+
+/// refresh the codemirror editor
+/// since codemirror don't always reflect the values instantaneously
+pub fn refresh_codemirror() {
+    extern crate libc;
+    use std::ffi::CString;
+    use web_render::private::emscripten_asm_const_int;
+    unsafe {
+        const JS: &'static [u8] = b"\
+            if(CodeMirror && window.editor){\
+                console.log(\"refreshing code mirror\", window.editor);\
+                setTimeout(function(){\
+                    window.editor.refresh();\
+                },10);\
+            }\
+        \0";
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+        );
+    }
+}
+
+/// get codemirror value from here
+/// minimal example using allocated cstring
+pub fn get_codemirror_value1() -> String {
+    extern crate libc;
+    use std::ffi::CString;
+    use web_render::private::emscripten_asm_const_int;
+    let value = unsafe {
+        const JS: &'static [u8] = b"\
+            var str = \"The quick brown fox jumps over the lazy dog\";\
+            var len = lengthBytesUTF8(str);\
+            stringToUTF8(str, $0, len);\
+            return len;\
+        \0";
+        let mut value_cstring = CString::new("initial").unwrap();
+        let v = emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            value_cstring.as_ptr() as libc::c_int,
+        );
+        println!("v: {:?}", v);
+        println!("value from js: {:?}", value_cstring);
+        return value_cstring.into_string().unwrap()
+    };
+    value
+}
+
+
+
+/// get the length of string from domafic_pool with index
+fn get_strlen(index: i32) -> i32{
+    extern crate libc;
+    use std::ffi::CString;
+    use web_render::private::emscripten_asm_const_int;
+    unsafe {
+        const JS: &'static [u8] = b"\
+            if(__domafic_pool[$0]){\
+                return lengthBytesUTF8(__domafic_pool[$0]);\
+            }\
+            return -1;\
+        \0";
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            index as libc::c_int
+        )
+    }
+}
+
+/// warning of memory leak, should drop the the value from the domafic_fool
+/// or else there will be a lot of strings on it
+fn read_str(index: i32) -> String{
+    extern crate libc;
+    use std::ffi::CString;
+    use web_render::private::emscripten_asm_const_int;
+    let len = get_strlen(index);
+    println!("len: {}", len);
+
+    unsafe {
+        const JS: &'static [u8] = b"\
+            if(__domafic_pool[$0]){\
+                console.log(\"domafic_pool: \", __domafic_pool[$0]);\
+                stringToUTF8(__domafic_pool[$0], $1, lengthBytesUTF8(__domafic_pool[$0])+1);\
+            }\
+            console.log(\"no str in domafic pool\");\
+            return -1;\
+        \0";
+        let init = vec![' ' as u8;len as usize];
+        let mut value_cstring = CString::new(init).unwrap();
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            index as libc::c_int,
+            value_cstring.as_ptr() as libc::c_int
+        );
+        println!("value_cstring: {:?}", value_cstring);
+        let cm_value = value_cstring.into_string().unwrap();
+        drop_str(index);
+        cm_value
+    }
+}
+
+/// drop the str to prevent memory leaks
+fn drop_str(index: i32){
+    extern crate libc;
+    use web_render::private::emscripten_asm_const_int;
+    unsafe {
+        const JS: &'static [u8] = b"\
+            delete __domafic_pool[$0];\
+            __domafic_pool_free.push($0);\
+        \0";
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            index as libc::c_int,
+        );
+    }
+}
+
+/// get codemirror value from here
+pub fn get_codemirror_value() -> String {
+    extern crate libc;
+    use std::ffi::CString;
+    use web_render::private::emscripten_asm_const_int;
+    unsafe {
+        const JS: &'static [u8] = b"\
+            if (CodeMirror && window.editor){\
+                var str = window.editor.getDoc().getValue();\
+                var index = __domafic_pool_free.pop();\
+                if (index) {__domafic_pool[index] = str; return index;}\
+                return __domafic_pool.push(str) -1;\
+            }\
+        \0";
+        let index = emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char
+        );
+        let read = read_str(index);
+        println!("read: {}", read);
+        read
     }
 }
