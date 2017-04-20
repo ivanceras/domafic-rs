@@ -15,6 +15,7 @@ keywords = ["web", "ui", "javascript", "framework", "template"]
 either_n = { version = "0.2.0", optional = true }
 libc = { version = "0.2.16", optional = true }
 marksman_escape = { version = "0.1.2", optional = true }
+error-chain = "0.10"
 
 [features]
 default = ["use_either_n", "use_std", "web_render"]

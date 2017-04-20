@@ -128,6 +128,7 @@
 #![allow(unused_unsafe)]
 #![deny(missing_docs)]
 
+#[macro_use] extern crate error_chain;
 /// Trait for elements that can be drawn as to HTML DOM nodes
 pub mod dom_node;
 pub use dom_node::{DomNode, DomValue};
