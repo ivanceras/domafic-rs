@@ -1079,7 +1079,7 @@ mod private {
                                 let do_remove = {
                                     let ref old_attribute = vnode.attributes[i];
                                     if !node.attributes().any(|attr| *attr == *old_attribute) {
-                                        //vnode.web_element.remove_attribute(old_attribute.0);
+                                        vnode.web_element.remove_attribute(old_attribute.0);
                                         true
                                     } else {
                                         false
@@ -1299,6 +1299,25 @@ pub fn refresh_codemirror() {
     }
 }
 
+/// call mathjax render
+pub fn call_mathjax_renderer() {
+    extern crate libc;
+    use std::ffi::CString;
+    use web_render::private::emscripten_asm_const_int;
+    unsafe {
+        const JS: &'static [u8] = b"\
+            setTimeout(\
+                function(){\
+                    MathJax.Hub.Queue(['Typeset',MathJax.Hub]);\
+                }\
+            ,100);\
+        \0";
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+        );
+    }
+}
+
 
 mod errors {
     error_chain! { }
@@ -1331,12 +1350,15 @@ fn get_strlen(index: i32) -> Result<i32>{
     }
 }
 
+extern crate libc;
+use std::ffi::CString;
+use std::ffi::CStr;
+use std::str;
+use web_render::private::emscripten_asm_const_int;
+
 /// warning of memory leak, should drop the the value from the domafic_fool
 /// or else there will be a lot of strings on it
 fn read_str(index: i32) -> Result<String>{
-    extern crate libc;
-    use std::ffi::CString;
-    use web_render::private::emscripten_asm_const_int;
     let len = get_strlen(index).chain_err(||"no length of string")?;
 
     unsafe {
@@ -1365,8 +1387,6 @@ fn read_str(index: i32) -> Result<String>{
 
 /// drop the str to prevent memory leaks
 fn drop_str(index: i32){
-    extern crate libc;
-    use web_render::private::emscripten_asm_const_int;
     unsafe {
         const JS: &'static [u8] = b"\
             delete __domafic_pool[$0];\
@@ -1381,9 +1401,6 @@ fn drop_str(index: i32){
 
 /// get codemirror value from here
 pub fn get_codemirror_value() -> Result<String> {
-    extern crate libc;
-    use std::ffi::CString;
-    use web_render::private::emscripten_asm_const_int;
     unsafe {
         const JS: &'static [u8] = b"\
             if (CodeMirror && window.editor){\
@@ -1406,11 +1423,10 @@ pub fn get_codemirror_value() -> Result<String> {
     }
 }
 
+
+
 /// highlight codeblocks using highlightjs
 pub fn highlight_codeblocks(){
-    extern crate libc;
-    use std::ffi::CString;
-    use web_render::private::emscripten_asm_const_int;
     unsafe {
         const JS: &'static [u8] = b"\
             if (hljs){\
@@ -1432,9 +1448,6 @@ pub fn highlight_codeblocks(){
 
 /// simulate click on element
 pub fn click_on(id: &str){
-    extern crate libc;
-    use std::ffi::CString;
-    use web_render::private::emscripten_asm_const_int;
     unsafe {
         const JS: &'static [u8] = b"\
             var elm = document.getElementById(UTF8ToString($0));\
@@ -1454,9 +1467,6 @@ pub fn click_on(id: &str){
 
 /// set codemirror theme
 pub fn set_codemirror_theme(theme: &str){
-    extern crate libc;
-    use std::ffi::CString;
-    use web_render::private::emscripten_asm_const_int;
     unsafe {
         const JS: &'static [u8] = b"\
             if (CodeMirror && window.editor){\
@@ -1474,9 +1484,6 @@ pub fn set_codemirror_theme(theme: &str){
 
 /// set codemirror theme
 pub fn set_codemirror_keymap(keymap: &str){
-    extern crate libc;
-    use std::ffi::CString;
-    use web_render::private::emscripten_asm_const_int;
     unsafe {
         const JS: &'static [u8] = b"\
             if (CodeMirror && window.editor){\
@@ -1495,9 +1502,6 @@ pub fn set_codemirror_keymap(keymap: &str){
 
 /// A hacky way to set element attribute
 pub fn set_element_attribute(selector: &str, key: &str, value:&str) -> Result<()>{
-    extern crate libc;
-    use std::ffi::CString;
-    use web_render::private::emscripten_asm_const_int;
     let id = {
         unsafe {
             const JS: &'static [u8] = b"\
@@ -1527,4 +1531,8 @@ pub fn set_element_attribute(selector: &str, key: &str, value:&str) -> Result<()
         }
     };
     if id < 0 { bail!("no such element") } else { Ok(()) }
+}
+
+/// call a rust function from js
+pub fn call_rust_from_js(){
 }
