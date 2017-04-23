@@ -1511,7 +1511,6 @@ pub fn set_element_attribute(selector: &str, key: &str, value:&str) -> Result<()
                 if (elem){\
                     var key = UTF8ToString($1);\
                     var value = UTF8ToString($2);\
-                    console.log('selector key value', selector, key, value);\
                     if(value == 'false'){\
                         elem[key] = false;\
                     }else{\
@@ -1535,4 +1534,53 @@ pub fn set_element_attribute(selector: &str, key: &str, value:&str) -> Result<()
 
 /// call a rust function from js
 pub fn call_rust_from_js(){
+}
+
+
+fn get_strlen_server_api_url() -> Result<usize>{
+    unsafe {
+        const JS: &'static [u8] = b"\
+            if (window.server_api_url){\
+                var str = window.server_api_url;\
+                return lengthBytesUTF8(str);\
+            }else{\
+                return -1;\
+            }\
+        \0";
+        let len = emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+        );
+        if len < 0 {
+            bail!("Unable to read strlen")
+        }else{
+            Ok(len as usize)
+        }
+    }
+}
+
+/// get the configure server api url
+pub fn get_server_api_url() -> Result<String>{
+    unsafe {
+        const JS: &'static [u8] = b"\
+            if (window.server_api_url){\
+                var str = window.server_api_url;\
+                stringToUTF8(str, $0, lengthBytesUTF8(str)+1);\
+            }else{\
+                return -1;\
+            }\
+        \0";
+        let len = get_strlen_server_api_url().chain_err(||"No strlen for window.server_api_url")?;
+        let init = vec![' ' as u8;len as usize]; // 100 character for server url
+        let mut url_cstring = CString::new(init).unwrap();
+        let index = emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            url_cstring.as_ptr() as *const libc::c_char
+        );
+        if index < 0 {
+            bail!("server api url not configured");
+        }else{
+            let server_url = url_cstring.into_string().chain_err(||"unable to convert to cstring");
+            server_url
+        }
+    }
 }
