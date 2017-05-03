@@ -1464,6 +1464,43 @@ pub fn click_on(id: &str){
     }
 }
 
+/// simulate a delayed click on element
+pub fn delayed_click_on(id: &str, delay: i32){
+    unsafe {
+        const JS: &'static [u8] = b"\
+            setTimeout(function(){\
+                var elm = document.getElementById(UTF8ToString($0));\
+                console.log('to click on', elm);\
+                if(elm){\
+                    console.log('clicked on', elm);\
+                    elm.click();\
+                }\
+            },1000);\
+        \0";
+
+        let id_cstring = CString::new(id).unwrap();
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            id_cstring.as_ptr() as libc::c_int
+        );
+    }
+}
+
+/// simulate a delayed click on element
+pub fn save_last_opened_file(filename: &str){
+    unsafe {
+        const JS: &'static [u8] = b"\
+            localStorage.setItem('last_opened_file', UTF8ToString($0));\
+        \0";
+
+        let filename_cstring = CString::new(filename).unwrap();
+        emscripten_asm_const_int(
+            &JS[0] as *const _ as *const libc::c_char,
+            filename_cstring.as_ptr() as libc::c_int
+        );
+    }
+}
+
 
 /// set codemirror theme
 pub fn set_codemirror_theme(theme: &str){
