@@ -903,7 +903,13 @@ mod private {
                                         value: cm_value,\
                                         lineNumbers: true,\
                                         autofocus: true,\
-                                        styleActiveLine: true\
+                                        styleActiveLine: true,\
+                                        extraKeys: {\
+                                          Tab: function(cm) {\
+                                            var spaces = Array(cm.getOption('indentUnit') + 1).join(' ');\
+                                            cm.replaceSelection(spaces);\
+                                          }\
+                                        }\
                                     });\
                                 },100);\
                             }\
